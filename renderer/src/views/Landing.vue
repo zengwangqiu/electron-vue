@@ -20,154 +20,29 @@
 </template>
 
 <script>
-// import path from "path";
-// import exec from "child_process";
-// import fs from "fs";
-// import { desktopCapturer, ipcRenderer } from "electron";
+const path = window.require("path");
+const exec = window.require("child_process");
+const fs = window.require("fs");
+const { ipcRenderer, desktopCapturer } = window.require("electron");
 let recorder;
 let blobs = [];
-// const Recorder = {
-//   start() {
-//     desktopCapturer
-//       .getSources({ types: ["screen"] })
-//       .then(async sources => {
-//         const stream = await navigator.webkitGetUserMedia(
-//           {
-//             audio: {
-//               mandatory: {
-//                 chromeMediaSource: "desktop"
-//               }
-//             },
-//             video: {
-//               mandatory: {
-//                 chromeMediaSource: "desktop"
-//               }
-//             }
-//           },
-//           this.handleStream,
-//           err => {
-//             console.log("error", err);
-//           }
-//         );
-//       })
-//       .catch(error => console.log(error));
-//   },
-//   handleStream(stream) {
-//     recorder = new MediaRecorder(stream);
-//     blobs = [];
-//     recorder.ondataavailable = function(event) {
-//       blobs.push(event.data);
-//     };
-//     recorder.start();
-//   },
-//   toArrayBuffer(blob, cb) {
-//     const fileReader = new FileReader();
-//     fileReader.onload = function() {
-//       const arrayBuffer = this.result;
-//       cb(arrayBuffer);
-//     };
-//     fileReader.readAsArrayBuffer(blob);
-//   },
-//   toBuffer(ab) {
-//     const buffer = new Buffer(ab.byteLength);
-//     const arr = new Uint8Array(ab);
-//     for (let i = 0; i < arr.byteLength; i++) {
-//       buffer[i] = arr[i];
-//     }
-//     return buffer;
-//   },
-//   stopRecord(userPath, saveOnline) {
-//     recorder.onstop = () => {
-//       this.toArrayBuffer(new Blob(blobs, { type: "video/webm" }), chunk => {
-//         const buffer = this.toBuffer(chunk);
-//         const randomString = Math.random()
-//           .toString(36)
-//           .substring(7);
-//         const randomName = "/" + randomString + "-shot.webm";
-//         const mpath = userPath + randomName;
-//         fs.writeFile(mpath, buffer, function(err) {
-//           if (!err) {
-//             console.log("Saved video: " + mpath, "do save online?", saveOnline);
-//             exec(
-//               `${path.join(
-//                 __dirname,
-//                 "../..",
-//                 "ffmpeg.exe"
-//               )} -i ${mpath} -vcodec h264 ${path.join(userPath, "test.mp4")}`,
-//               (error, stdout, stderr) => {
-//                 if (error) {
-//                   console.error(`cmd error: ${error}`);
-//                   return;
-//                 }
-//                 console.log(`stdout: ${stdout}`);
-//                 console.error(`stderr: ${stderr}`);
-//               }
-//             );
-//             if (saveOnline) {
-//               console.log("save online");
-//               const buff = Buffer.from(buffer).toString("base64");
-//               $http({
-//                 method: "POST",
-//                 url: "https://api.cloudinary.com/v1_1/dyqhomagf/upload",
-//                 data: {
-//                   upload_preset: "bsfgxm61",
-//                   file: "data:video/webm;base64," + buff
-//                 },
-//                 uploadEventHandlers: {
-//                   progress: function(e) {
-//                     console.log(e);
-//                     if (e && e.total && e.loaded) {
-//                       const progress = Math.floor((e.loaded / e.total) * 100);
-//                       ipcRenderer.send("upload::progress", progress);
-//                     }
-//                   }
-//                 }
-//               })
-//                 .then(function(res) {
-//                   console.log("Saved online", res.data.secure_url);
-//                   ipcRenderer.send("upload::finish", res.data.secure_url);
-//                 })
-//                 .catch(function(err) {
-//                   console.log("Error saving online", err);
-//                 });
-//             }
-//           } else {
-//             alert("Failed to save video " + err);
-//           }
-//         });
-//       });
-//     };
-//     recorder.stop();
-//   }
-// };
-// ipcRenderer.on("path::chosen", (e, path) => {
-//   this.outputVideoPath = path;
-//   $scope.$apply();
-// });
-// ipcRenderer.on("video::finish", async () => {
-//   Recorder.stopRecord(this.outputVideoPath, this.saveOnline);
-//   if (this.saveOnline) {
-//     const info = `Saved to: ${this.outputVideoPath}`;
-//     alert(info);
-//   } else {
-//     ipcRenderer.send("start::upload");
-//   }
-// });
 export default {
   name: "Landing",
-  data: {
-    outputVideoPath: "",
-    saveOnline: false,
-    justSaved: false,
+  data() {
+    return {
+      outputVideoPath: "",
+      saveOnline: false,
+      justSaved: false,
+    };
   },
   components: {},
   methods: {
-    openDialog: () => {
+    openDialog() {
       ipcRenderer.send("pick::path");
     },
-    startRecord: () => {
+    startRecord() {
       if (this.outputVideoPath) {
-        Recorder.start();
+        this.start();
         ipcRenderer.send("start::record");
       } else alert("Please establish saving path.");
     },
@@ -199,14 +74,14 @@ export default {
     handleStream(stream) {
       recorder = new MediaRecorder(stream);
       blobs = [];
-      recorder.ondataavailable = function(event) {
+      recorder.ondataavailable = function (event) {
         blobs.push(event.data);
       };
       recorder.start();
     },
     toArrayBuffer(blob, cb) {
       const fileReader = new FileReader();
-      fileReader.onload = function() {
+      fileReader.onload = function () {
         const arrayBuffer = this.result;
         cb(arrayBuffer);
       };
@@ -229,7 +104,7 @@ export default {
             .substring(7);
           const randomName = "/" + randomString + "-shot.webm";
           const mpath = userPath + randomName;
-          fs.writeFile(mpath, buffer, function(err) {
+          fs.writeFile(mpath, buffer, function (err) {
             if (!err) {
               console.log(
                 "Saved video: " + mpath,
@@ -262,7 +137,7 @@ export default {
                     file: "data:video/webm;base64," + buff
                   },
                   uploadEventHandlers: {
-                    progress: function(e) {
+                    progress: function (e) {
                       console.log(e);
                       if (e && e.total && e.loaded) {
                         const progress = Math.floor((e.loaded / e.total) * 100);
@@ -271,11 +146,11 @@ export default {
                     }
                   }
                 })
-                  .then(function(res) {
+                  .then(function (res) {
                     console.log("Saved online", res.data.secure_url);
                     ipcRenderer.send("upload::finish", res.data.secure_url);
                   })
-                  .catch(function(err) {
+                  .catch(function (err) {
                     console.log("Error saving online", err);
                   });
               }
@@ -288,21 +163,20 @@ export default {
       recorder.stop();
     },
   },
-  // mounted() {
-  //   ipcRenderer.on("path::chosen", (e, path) => {
-  //     this.outputVideoPath = path;
-  //     $scope.$apply();
-  //   });
-  //   ipcRenderer.on("video::finish", async () => {
-  //     Recorder.stopRecord(this.outputVideoPath, this.saveOnline);
-  //     if (this.saveOnline) {
-  //       const info = `Saved to: ${this.outputVideoPath}`;
-  //       alert(info);
-  //     } else {
-  //       ipcRenderer.send("start::upload");
-  //     }
-  //   });
-  // }
+  mounted() {
+    ipcRenderer.on("path::chosen", (e, path) => {
+      this.outputVideoPath = path;
+    });
+    ipcRenderer.on("video::finish", async () => {
+      Recorder.stopRecord(this.outputVideoPath, this.saveOnline);
+      if (this.saveOnline) {
+        const info = `Saved to: ${this.outputVideoPath}`;
+        alert(info);
+      } else {
+        ipcRenderer.send("start::upload");
+      }
+    });
+  }
 };
 </script>
 <style lang="less">

@@ -12,12 +12,14 @@
 </template>
 
 <script>
-import { ipcRenderer } from "electron";
+const { ipcRenderer } = window.require("electron");
 export default {
   name: "Uploader",
-  data: {
-    progress: 0,
-    url: "",
+  data() {
+    return {
+      progress: 0,
+      url: "",
+    };
   },
   mounted() {
     ipcRenderer.on("upload::progress", (e, progress) => {

@@ -6,10 +6,14 @@
 </template>
 
 <script>
-import { ipcRenderer } from "electron";
+const { ipcRenderer } = window.require("electron");
 export default {
   name: "Recorder",
-  data: {},
+  data() {
+    return {
+
+    };
+  },
   methods: {
     stopRecord() {
       ipcRenderer.send("stop::record");

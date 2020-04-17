@@ -9,7 +9,9 @@ Vue.config.productionTip = false;
 Vue.prototype.$axios = axios;
 // Vue.prototype.$ipcRenderer = ipcRenderer;
 // Vue.prototype.$desktopCapturer = desktopCapturer;
-
+declare global {
+  interface Window { require: any; }
+}
 new Vue({
   router,
   store,
