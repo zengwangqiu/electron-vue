@@ -1,10 +1,11 @@
 import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
+export type WinMethodsName = "setMenu" | "setIgnoreMouseEvents" | "setFocusable" | "setFullScreen";
 
 export default {
   create(
     winUrl: string,
     options?: BrowserWindowConstructorOptions,
-    methods?: Array<{ name: keyof BrowserWindow, value: any }>,
+    methods: Array<{ name: WinMethodsName, value: any }> = [],
   ): BrowserWindow {
     let config: BrowserWindowConstructorOptions = {
       useContentSize: true,
@@ -17,10 +18,7 @@ export default {
     let windowId = new BrowserWindow(config);
     // tslint:disable-next-line:prefer-for-of
     for (let i = 0; i < methods.length; i++) {
-      const method = windowId[methods[i].name];
-      if (typeof method === "function") {
-        method.call(methods[i].value);
-      }
+      windowId[methods[i].name](methods[i].value);
     }
     windowId.loadURL(winUrl);
     windowId.on("closed", () => { windowId = null; });

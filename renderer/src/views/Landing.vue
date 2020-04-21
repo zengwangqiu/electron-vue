@@ -21,9 +21,10 @@
 
 <script>
 const path = window.require("path");
-const exec = window.require("child_process");
+const exec = window.require("child_process").exec;
 const fs = window.require("fs");
 const { ipcRenderer, desktopCapturer } = window.require("electron");
+
 let recorder;
 let blobs = [];
 export default {
@@ -50,7 +51,7 @@ export default {
       desktopCapturer
         .getSources({ types: ["screen"] })
         .then(async sources => {
-          const stream = await navigator.webkitGetUserMedia(
+          await navigator.webkitGetUserMedia(
             {
               audio: {
                 mandatory: {
@@ -96,14 +97,15 @@ export default {
       return buffer;
     },
     stopRecord(userPath, saveOnline) {
+      const ffmpegPath = path.join(this.$appPath, "ffmpeg.exe");
       recorder.onstop = () => {
         this.toArrayBuffer(new Blob(blobs, { type: "video/webm" }), chunk => {
           const buffer = this.toBuffer(chunk);
           const randomString = Math.random()
             .toString(36)
             .substring(7);
-          const randomName = "/" + randomString + "-shot.webm";
-          const mpath = userPath + randomName;
+          const randomName = randomString + "-shot.webm";
+          const mpath = path.join(userPath, randomName);
           fs.writeFile(mpath, buffer, function (err) {
             if (!err) {
               console.log(
@@ -111,19 +113,13 @@ export default {
                 "do save online?",
                 saveOnline
               );
-              exec(
-                `${path.join(
-                  __dirname,
-                  "../..",
-                  "ffmpeg.exe"
-                )} -i ${mpath} -vcodec h264 ${path.join(userPath, "test.mp4")}`,
+
+              exec(`${ffmpegPath} -i ${mpath} -vcodec h264 ${path.join(userPath, "test.mp4")}`,
                 (error, stdout, stderr) => {
                   if (error) {
-                    console.error(`cmd error: ${error}`);
+                    console.log(error)
                     return;
                   }
-                  console.log(`stdout: ${stdout}`);
-                  console.error(`stderr: ${stderr}`);
                 }
               );
               if (saveOnline) {
@@ -168,8 +164,8 @@ export default {
       this.outputVideoPath = path;
     });
     ipcRenderer.on("video::finish", async () => {
-      Recorder.stopRecord(this.outputVideoPath, this.saveOnline);
-      if (this.saveOnline) {
+      this.stopRecord(this.outputVideoPath, this.saveOnline);
+      if (!this.saveOnline) {
         const info = `Saved to: ${this.outputVideoPath}`;
         alert(info);
       } else {

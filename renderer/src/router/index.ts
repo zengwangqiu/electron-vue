@@ -19,16 +19,19 @@ const routes: RouteConfig[] = [
     path: "/transparent",
     name: "Transparent",
     component: () => import(/* webpackChunkName: "transparent" */ "../views/Transparent.vue"),
+    // component: Transparent,
   },
   {
     path: "/recording",
     name: "Recorder",
     component: () => import(/* webpackChunkName: "transparent" */ "../views/Recorder.vue"),
+    // component: Recorder,
   },
   {
     path: "/uploading",
     name: "Uploader",
     component: () => import(/* webpackChunkName: "transparent" */ "../views/Uploader.vue"),
+    // component: Uploader,
   },
 ];
 

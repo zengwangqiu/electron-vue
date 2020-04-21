@@ -22,7 +22,7 @@
     "asar": false,
     "extraResources": {
       "from": "./ffmpeg.exe",
-      "to": "./ffmpeg.exe"
+      "to": "./app/ffmpeg.exe"
     },
     "nsis": {
       "oneClick": false
