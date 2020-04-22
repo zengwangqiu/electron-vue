@@ -8,7 +8,7 @@
     "build": "electron-builder",
     "build:renderer": "cd renderer && yarn build",
     "build:renderer:dev": "cd renderer && yarn build:dev",
-    "build:main": "tsc"
+    "build:main": "tsc -w"
   },
   "build": {
     "appId": "screenRecorder",

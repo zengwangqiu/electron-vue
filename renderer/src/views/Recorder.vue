@@ -1,7 +1,16 @@
 <template>
-  <div class="recording">
+  <div class="recording" v-if="starting">
     <p class="recording-text">Click button to stop recording.</p>
     <button class="recording-button" type="button" @click="stopRecord()">Stop recording</button>
+  </div>
+  <div class="recording" v-else>
+    <p class="recording-text">Click button to choose arean.</p>
+    <button
+      class="recording-button"
+      type="button"
+      @click="startRecord()"
+      :disabled="disabled"
+    >Start recording</button>
   </div>
 </template>
 
@@ -11,13 +20,23 @@ export default {
   name: "Recorder",
   data() {
     return {
-
+      starting: false,
+      disabled: false,
     };
   },
   methods: {
+    startRecord() {
+      ipcRenderer.send("arean::chose");
+      this.disabled = true;
+    },
     stopRecord() {
       ipcRenderer.send("stop::record");
     },
+  },
+  mounted() {
+    ipcRenderer.on("record::start", () => {
+      this.starting = true;
+    })
   }
 };
 </script>

@@ -14,8 +14,9 @@
       <label for="saveOnline">上传到云端</label>
     </section>
     <section>
-      <button class="landing__button" type="button" @click="startRecord()">Start Recording</button>
+      <button class="landing__button" type="button" @click="startRecord()">开始录制</button>
     </section>
+    <video autoplay style="display:none" :width="arean.width+'px'" :height="arean.height+'px'"></video>
   </div>
 </template>
 
@@ -31,6 +32,7 @@ export default {
   name: "Landing",
   data() {
     return {
+      arean: { x: 0, y: 0, width: 0, height: 0 },
       outputVideoPath: "",
       saveOnline: false,
       justSaved: false,
@@ -43,7 +45,7 @@ export default {
     },
     startRecord() {
       if (this.outputVideoPath) {
-        this.start();
+        // this.start();
         ipcRenderer.send("start::record");
       } else alert("Please establish saving path.");
     },
@@ -97,10 +99,11 @@ export default {
       return buffer;
     },
     stopRecord(userPath, saveOnline) {
-      const ffmpegPath = path.join(this.$appPath, "ffmpeg.exe");
+      const self = this;
+      const ffmpegPath = path.join(self.$appPath, "ffmpeg.exe");
       recorder.onstop = () => {
-        this.toArrayBuffer(new Blob(blobs, { type: "video/webm" }), chunk => {
-          const buffer = this.toBuffer(chunk);
+        self.toArrayBuffer(new Blob(blobs, { type: "video/webm" }), chunk => {
+          const buffer = self.toBuffer(chunk);
           const randomString = Math.random()
             .toString(36)
             .substring(7);
@@ -114,7 +117,7 @@ export default {
                 saveOnline
               );
 
-              exec(`${ffmpegPath} -i ${mpath} -vcodec h264 ${path.join(userPath, "test.mp4")}`,
+              exec(`${ffmpegPath} -i ${mpath} -vf crop=${self.arean.width - 5}:${self.arean.height - 5}:${self.arean.x + 3}:${self.arean.y + 3} -vcodec h264 ${path.join(userPath, randomString + ".mp4")}`,
                 (error, stdout, stderr) => {
                   if (error) {
                     console.log(error)
@@ -123,32 +126,33 @@ export default {
                 }
               );
               if (saveOnline) {
-                console.log("save online");
-                const buff = Buffer.from(buffer).toString("base64");
-                $http({
-                  method: "POST",
-                  url: "https://api.cloudinary.com/v1_1/dyqhomagf/upload",
-                  data: {
-                    upload_preset: "bsfgxm61",
-                    file: "data:video/webm;base64," + buff
-                  },
-                  uploadEventHandlers: {
-                    progress: function (e) {
-                      console.log(e);
-                      if (e && e.total && e.loaded) {
-                        const progress = Math.floor((e.loaded / e.total) * 100);
-                        ipcRenderer.send("upload::progress", progress);
-                      }
-                    }
-                  }
-                })
-                  .then(function (res) {
-                    console.log("Saved online", res.data.secure_url);
-                    ipcRenderer.send("upload::finish", res.data.secure_url);
-                  })
-                  .catch(function (err) {
-                    console.log("Error saving online", err);
-                  });
+                alert("功能暂未实现!")
+                // console.log("save online");
+                // const buff = Buffer.from(buffer).toString("base64");
+                // $http({
+                //   method: "POST",
+                //   url: "https://api.cloudinary.com/v1_1/dyqhomagf/upload",
+                //   data: {
+                //     upload_preset: "bsfgxm61",
+                //     file: "data:video/webm;base64," + buff
+                //   },
+                //   uploadEventHandlers: {
+                //     progress: function (e) {
+                //       console.log(e);
+                //       if (e && e.total && e.loaded) {
+                //         const progress = Math.floor((e.loaded / e.total) * 100);
+                //         ipcRenderer.send("upload::progress", progress);
+                //       }
+                //     }
+                //   }
+                // })
+                //   .then(function (res) {
+                //     console.log("Saved online", res.data.secure_url);
+                //     ipcRenderer.send("upload::finish", res.data.secure_url);
+                //   })
+                //   .catch(function (err) {
+                //     console.log("Error saving online", err);
+                //   });
               }
             } else {
               alert("Failed to save video " + err);
@@ -163,6 +167,11 @@ export default {
     ipcRenderer.on("path::chosen", (e, path) => {
       this.outputVideoPath = path;
     });
+
+    ipcRenderer.on("arean::size", (e, arean) => {
+      this.arean = arean;
+    });
+
     ipcRenderer.on("video::finish", async () => {
       this.stopRecord(this.outputVideoPath, this.saveOnline);
       if (!this.saveOnline) {
@@ -172,6 +181,11 @@ export default {
         ipcRenderer.send("start::upload");
       }
     });
+
+    ipcRenderer.on("start::record", () => {
+      this.start();
+      ipcRenderer.send("record::start");
+    })
   }
 };
 </script>
