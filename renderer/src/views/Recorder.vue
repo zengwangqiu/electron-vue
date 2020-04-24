@@ -1,60 +1,44 @@
 <template>
-  <div class="recording" v-if="starting">
-    <p class="recording-text">Click button to stop recording.</p>
-    <button class="recording-button" type="button" @click="stopRecord()">Stop recording</button>
-  </div>
-  <div class="recording" v-else>
-    <p class="recording-text">Click button to choose arean.</p>
-    <button
-      class="recording-button"
-      type="button"
-      @click="startRecord()"
-      :disabled="disabled"
-    >Start recording</button>
+  <div class="recorder-view" ref="recorder">
+    <div class="drag"></div>
   </div>
 </template>
 
 <script>
-const { ipcRenderer } = window.require("electron");
+// import DraggableResizable from "../components/DraggableResizable.vue";
+const win = window.require('electron').remote.getCurrentWindow();
+
 export default {
   name: "Recorder",
-  data() {
-    return {
-      starting: false,
-      disabled: false,
-    };
-  },
-  methods: {
-    startRecord() {
-      ipcRenderer.send("arean::chose");
-      this.disabled = true;
-    },
-    stopRecord() {
-      ipcRenderer.send("stop::record");
-    },
+  components: {
+    // DraggableResizable
   },
   mounted() {
-    ipcRenderer.on("record::start", () => {
-      this.starting = true;
+    const el = this.$refs.recorder;
+    el.addEventListener('mouseenter', () => {
+      win.setIgnoreMouseEvents(true, { forward: true })
+    })
+    el.addEventListener('mouseleave', () => {
+      win.setIgnoreMouseEvents(false)
     })
   }
 };
 </script>
 
 <style lang="less">
-.recording {
-  &-text {
-    font-size: 1.4rem;
-    margin-bottom: 1rem;
-  }
-  &-button {
-    border-radius: 5px;
-    border: 1px solid gray;
-    background-color: lightgray;
-    height: 30px;
-    padding: 0 10px;
-    display: flex;
-    align-items: center;
+.recorder-view {
+  display: flex;
+  align-items: center; /*垂直方向居中*/
+  justify-content: center; /*水平方向居中*/
+  width: 100vw;
+  height: 100vh;
+  border: 20px dashed red;
+  .drag {
+    cursor: move;
+    width: 20px;
+    height: 20px;
+    background-color: aqua;
+    -webkit-app-region: drag;
   }
 }
 </style>

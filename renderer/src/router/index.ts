@@ -1,9 +1,9 @@
 import Vue from "vue";
 import VueRouter, { RouteConfig } from "vue-router";
-import Landing from "../views/Landing.vue";
-import Recorder from "../views/Recorder.vue";
-import Transparent from "../views/Transparent.vue";
-import Uploader from "../views/Uploader.vue";
+import Main from "../views/Main.vue";
+// import Recorder from "../views/Recorder.vue";
+// import Control from "../views/Control.vue";
+// import Uploader from "../views/Uploader.vue";
 
 
 
@@ -12,20 +12,20 @@ Vue.use(VueRouter);
 const routes: RouteConfig[] = [
   {
     path: "/",
-    name: "Landing",
-    component: Landing,
+    name: "Main",
+    component: Main,
   },
   {
-    path: "/transparent",
-    name: "Transparent",
-    component: () => import(/* webpackChunkName: "transparent" */ "../views/Transparent.vue"),
-    // component: Transparent,
-  },
-  {
-    path: "/recording",
+    path: "/recorder",
     name: "Recorder",
-    component: () => import(/* webpackChunkName: "transparent" */ "../views/Recorder.vue"),
+    component: () => import(/* webpackChunkName: "recorder" */ "../views/Recorder.vue"),
     // component: Recorder,
+  },
+  {
+    path: "/control",
+    name: "Control",
+    component: () => import(/* webpackChunkName: "control" */ "../views/Control.vue"),
+    // component: Control,
   },
   {
     path: "/uploading",

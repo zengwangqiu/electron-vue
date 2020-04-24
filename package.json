@@ -25,7 +25,9 @@
       "to": "./app/ffmpeg.exe"
     },
     "nsis": {
-      "oneClick": false
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true
     }
   },
   "author": "easub",

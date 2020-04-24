@@ -1,20 +1,33 @@
 import path from "path";
 import window from "./window";
-import { dialog, app, ipcMain, BrowserWindow } from "electron";
+import { dialog, app, ipcMain, globalShortcut } from "electron";
 
 let mainWindow: Electron.BrowserWindow;
-let transparentWindow: Electron.BrowserWindow;
-let recordingWindow: Electron.BrowserWindow;
+let recorderWindow: Electron.BrowserWindow;
+let controlWindow: Electron.BrowserWindow;
 let uploadWindow: Electron.BrowserWindow;
 
 app.on("ready", () => {
+  // 注册停止快捷键
+  globalShortcut.register("CommandOrControl+S", () => {
+
+    controlWindow.close();
+    mainWindow.show();
+
+    // 通知主窗口 录制结束
+    mainWindow.webContents.send("video::finish", path.join(__dirname, "../..", "ffmpeg.exe"));
+  });
   // 加载一次
   // BrowserWindow.addDevToolsExtension(path.resolve(__dirname, "../../devTools/vue-devtools"));
   mainWindow = window.create(
     path.join(__dirname, "../public/index.html"),
-    { width: 500, height: 400 },
+    {
+      width: 500,
+      height: 700,
+    },
     [
       { name: "setMenu", value: null },
+      // { name: "setSkipTaskbar", value: true },
     ],
   );
   // 主窗口加载完成
@@ -24,7 +37,7 @@ app.on("ready", () => {
   });
 
   // 打开调试工具
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 });
 
 ipcMain.on("pick::path", async () => {
@@ -36,16 +49,19 @@ ipcMain.on("pick::path", async () => {
 ipcMain.on("start::record", () => {
   // 主窗口最小化
   mainWindow.minimize();
-  const urlTransparent = path.join(__dirname, "../public/index.html#transparent");
-  const urlRecording = path.join(__dirname, "../public/index.html#recording");
-  transparentWindow = window.create(
-    urlTransparent,
+  const recorderURL = path.join(__dirname, "../public/index.html#recorder");
+  const controlURL = path.join(__dirname, "../public/index.html#control");
+  recorderWindow = window.create(
+    recorderURL,
     {
-      width: 1000,
-      height: 500,
+      width: 300,
+      height: 300,
       transparent: true,
       frame: false,
       alwaysOnTop: true,
+      useContentSize: true,
+      modal: true,
+      parent: mainWindow,
     },
     [
       { name: "setMenu", value: null },
@@ -54,12 +70,16 @@ ipcMain.on("start::record", () => {
       // { name: "setFullScreen", value: true },
     ],
   );
-  recordingWindow = window.create(
-    urlRecording,
+  // recorderWindow.webContents.openDevTools();
+  controlWindow = window.create(
+    controlURL,
     {
       width: 250,
-      height: 400,
+      height: 100,
       alwaysOnTop: true,
+      resizable: false,
+      movable: true,
+      parent: recorderWindow,
     },
     [
       { name: "setMenu", value: null },
@@ -67,32 +87,40 @@ ipcMain.on("start::record", () => {
   );
 
   // 打开调试工具
-  // recordingWindow.webContents.openDevTools();
+  // controlWindow.webContents.openDevTools();
 
   // 已经开始录制
   ipcMain.on("record::start", () => {
     // 通知控制窗口改变按钮状态
-    recordingWindow.webContents.send("record::start");
+    controlWindow.minimize();
+    mainWindow.show();
+    controlWindow.webContents.send("record::start");
   });
 
-  // 重置录制区域事件监听
-  transparentWindow.on("will-resize", (e, newsize) => {
+  // 改变录制区域大小事件监听
+  recorderWindow.on("will-resize", (e, newRectangle) => {
     // 通知主窗口更新数据
-    mainWindow.webContents.send("arean::size", newsize);
+    mainWindow.webContents.send("arean::size", newRectangle);
+  });
+
+  // 改变录制区域大小位置事件监听
+  recorderWindow.on("will-move", (e, newRectangle) => {
+    // 通知主窗口更新数据
+    mainWindow.webContents.send("arean::move", newRectangle);
   });
 
   // 控制窗口关闭
-  recordingWindow.on("closed", () => {
-    transparentWindow.close();
+  controlWindow.on("closed", () => {
+    recorderWindow.close();
   });
 });
 
 // 录制取域选择确认
 ipcMain.on("arean::chose", () => {
-  const sizes = transparentWindow.getContentSize();
-  const posiontion = transparentWindow.getPosition();
-  transparentWindow.setIgnoreMouseEvents(true);
-  transparentWindow.setFocusable(true);
+  const sizes = recorderWindow.getContentSize();
+  const posiontion = recorderWindow.getPosition();
+  // recorderWindow.setIgnoreMouseEvents(true);
+  // recorderWindow.setFocusable(true);
 
   // 通知主窗口开始录制
   mainWindow.webContents.send("start::record");
@@ -102,7 +130,7 @@ ipcMain.on("arean::chose", () => {
 
 // 录制结束
 ipcMain.on("stop::record", () => {
-  recordingWindow.close();
+  controlWindow.close();
   mainWindow.show();
 
   // 通知主窗口 录制结束

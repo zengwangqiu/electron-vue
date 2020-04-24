@@ -1,5 +1,6 @@
 import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
-export type WinMethodsName = "setMenu" | "setIgnoreMouseEvents" | "setFocusable" | "setFullScreen";
+export type WinMethodsName = "setMenu" | "setIgnoreMouseEvents" |
+  "setFocusable" | "setFullScreen" | "setSkipTaskbar";
 
 export default {
   create(

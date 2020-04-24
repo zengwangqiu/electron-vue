@@ -1,22 +1,25 @@
 <template>
-  <div class="landing">
+  <div class="main">
     <header>
-      <h1 class="landing__header">录屏</h1>
+      <h1 class="main__header">录屏</h1>
     </header>
-    <section class="landing__path">
-      <div class="landing__path-text">
+    <section class="main__path">
+      <div class="main__path-text">
         <span>{{ outputVideoPath }}</span>
       </div>
-      <button class="landing__path-button" type="button" @click="openDialog()">选择保存路径</button>
+      <button class="main__path-button" type="button" @click="openDialog()">选择保存路径</button>
     </section>
-    <section class="landing__options">
+    <section class="main__options">
       <input type="checkbox" id="saveOnline" v-model="saveOnline" />
       <label for="saveOnline">上传到云端</label>
     </section>
     <section>
-      <button class="landing__button" type="button" @click="startRecord()">开始录制</button>
+      <button class="main__button" type="button" @click="startRecord()">开始录制</button>
     </section>
-    <video autoplay style="display:none" :width="arean.width+'px'" :height="arean.height+'px'"></video>
+    <div style="overflow: hidden;" class="canvas">
+      <p>预览：</p>
+      <canvas :width="this.arean.width+'px'" :height="this.arean.height+'px'" ref="canvas"></canvas>
+    </div>
   </div>
 </template>
 
@@ -28,26 +31,28 @@ const { ipcRenderer, desktopCapturer } = window.require("electron");
 
 let recorder;
 let blobs = [];
+let tracks;
+let timer;
 export default {
-  name: "Landing",
+  name: "Main",
   data() {
     return {
-      arean: { x: 0, y: 0, width: 0, height: 0 },
+      arean: { x: 0, y: 0, width: 384, height: 216 },
       outputVideoPath: "",
       saveOnline: false,
-      justSaved: false,
+      justSaved: false
     };
   },
-  components: {},
+
+
   methods: {
     openDialog() {
       ipcRenderer.send("pick::path");
     },
     startRecord() {
       if (this.outputVideoPath) {
-        // this.start();
         ipcRenderer.send("start::record");
-      } else alert("Please establish saving path.");
+      } else alert("请先选择保存路径!");
     },
     start() {
       desktopCapturer
@@ -55,14 +60,15 @@ export default {
         .then(async sources => {
           await navigator.webkitGetUserMedia(
             {
+              cursor: "never",
               audio: {
                 mandatory: {
-                  chromeMediaSource: "desktop"
+                  chromeMediaSource: "desktop",
                 }
               },
               video: {
                 mandatory: {
-                  chromeMediaSource: "desktop"
+                  chromeMediaSource: "desktop",
                 }
               }
             },
@@ -74,13 +80,51 @@ export default {
         })
         .catch(error => console.log(error));
     },
-    handleStream(stream) {
-      recorder = new MediaRecorder(stream);
+    handleStream(screenStream) {
+      const canvas = this.$refs.canvas;
+      const ctx = canvas.getContext("2d");
+      tracks = screenStream.getTracks();
+
+      const screenVideoTrack = screenStream.getVideoTracks()[0];
+      const screenAudioTrack = screenStream.getAudioTracks()[0];
+      const imageCapture = new ImageCapture(screenVideoTrack);
+      this.handleImage(ctx, imageCapture);
+      const options = {
+        audioBitsPerSecond: 128000,
+        videoBitsPerSecond: 2500000,
+        mimeType: "video/webm",
+      };
+      const canvasStream = canvas.captureStream(100);
+      const canvasVideoTrack = canvasStream.getVideoTracks()[0];
+
+      const mediaStream = new MediaStream([canvasVideoTrack]);
+      mediaStream.addTrack(screenAudioTrack);
+      recorder = new MediaRecorder(screenStream, options);
       blobs = [];
       recorder.ondataavailable = function (event) {
         blobs.push(event.data);
       };
       recorder.start();
+    },
+    handleImage(ctx, imageCapture) {
+      const self = this;
+      imageCapture.grabFrame().then(imageBitmap => {
+        ctx.drawImage(
+          imageBitmap,
+          this.arean.x,
+          this.arean.y,
+          this.arean.width,
+          this.arean.height,
+          0,
+          0,
+          this.arean.width,
+          this.arean.height
+          // this.canvasWidth, this.canvasHeight
+        );
+        timer = setTimeout(function () {
+          self.handleImage(ctx, imageCapture);
+        }, 0);
+      });
     },
     toArrayBuffer(blob, cb) {
       const fileReader = new FileReader();
@@ -117,16 +161,22 @@ export default {
                 saveOnline
               );
 
-              exec(`${ffmpegPath} -i ${mpath} -vf crop=${self.arean.width - 5}:${self.arean.height - 5}:${self.arean.x + 3}:${self.arean.y + 3} -vcodec h264 ${path.join(userPath, randomString + ".mp4")}`,
+              exec(
+                `${ffmpegPath} -i ${mpath} -vf crop=${self.arean.width -
+                5}:${self.arean.height - 5}:${self.arean.x + 3}:${self.arean
+                  .y + 3} -vcodec h264 ${path.join(
+                    userPath,
+                    randomString + ".mp4"
+                  )}`,
                 (error, stdout, stderr) => {
                   if (error) {
-                    console.log(error)
+                    console.log(error);
                     return;
                   }
                 }
               );
               if (saveOnline) {
-                alert("功能暂未实现!")
+                alert("功能暂未实现!");
                 // console.log("save online");
                 // const buff = Buffer.from(buffer).toString("base64");
                 // $http({
@@ -160,8 +210,10 @@ export default {
           });
         });
       };
+      clearTimeout(timer);
       recorder.stop();
-    },
+      tracks.forEach(track => track.stop());
+    }
   },
   mounted() {
     ipcRenderer.on("path::chosen", (e, path) => {
@@ -169,6 +221,10 @@ export default {
     });
 
     ipcRenderer.on("arean::size", (e, arean) => {
+      this.arean = arean;
+    });
+
+    ipcRenderer.on("arean::move", (e, arean) => {
       this.arean = arean;
     });
 
@@ -185,17 +241,20 @@ export default {
     ipcRenderer.on("start::record", () => {
       this.start();
       ipcRenderer.send("record::start");
-    })
+    });
   }
 };
 </script>
 <style lang="less">
-.landing {
+.main {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-
+  .canvas {
+    height: 0;
+    width: 0;
+  }
   &__header {
     font-family: "Open Sans Condensed", sans-serif;
     font-size: 4rem;
