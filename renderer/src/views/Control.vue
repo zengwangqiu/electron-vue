@@ -1,9 +1,22 @@
 <template>
-  <div class="control" v-if="starting">
-    <button class="control-button" type="button" @click="stopRecord()">停止录制</button>
-  </div>
-  <div class="control" v-else>
-    <button class="control-button" type="button" @click="startRecord()" :disabled="disabled">开始录制</button>
+  <div class="control">
+    <div v-if="creating" class="control-tip">视频生成中...</div>
+    <div v-else>
+      <button
+        :disabled="creating"
+        v-if="starting"
+        class="control-button"
+        type="button"
+        @click="stopRecord()"
+      >停止录制</button>
+      <button
+        v-else
+        class="control-button"
+        type="button"
+        @click="startRecord()"
+        :disabled="disabled"
+      >开始录制</button>
+    </div>
   </div>
 </template>
 
@@ -14,28 +27,33 @@ export default {
   data() {
     return {
       starting: false,
-      disabled: false
+      disabled: false,
+      creating: false,
     };
   },
   methods: {
     startRecord() {
       ipcRenderer.send("arean::chose");
       this.disabled = true;
+      this.starting = true;
     },
     stopRecord() {
       ipcRenderer.send("stop::record");
     }
   },
   mounted() {
-    ipcRenderer.on("record::start", () => {
-      this.starting = true;
-    });
+    ipcRenderer.on("video::creating", () => {
+      this.creating = true;
+    })
   }
 };
 </script>
 
 <style lang="less">
 .control {
+  &-tip {
+    font-size: 150%;
+  }
   &-text {
     font-size: 1.4rem;
     margin-bottom: 1rem;

@@ -33,6 +33,12 @@ const routes: RouteConfig[] = [
     component: () => import(/* webpackChunkName: "transparent" */ "../views/Uploader.vue"),
     // component: Uploader,
   },
+  {
+    path: "/move",
+    name: "Move",
+    component: () => import(/* webpackChunkName: "move" */ "../views/Move.vue"),
+    // component: Move,
+  },
 ];
 
 const router = new VueRouter({

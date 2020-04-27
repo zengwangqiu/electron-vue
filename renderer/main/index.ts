@@ -1,21 +1,40 @@
 import path from "path";
 import window from "./window";
-import { dialog, app, ipcMain, globalShortcut } from "electron";
+import { dialog, app, ipcMain, globalShortcut, Notification, shell, screen } from "electron";
 
 let mainWindow: Electron.BrowserWindow;
 let recorderWindow: Electron.BrowserWindow;
 let controlWindow: Electron.BrowserWindow;
 let uploadWindow: Electron.BrowserWindow;
+let moveWindow: Electron.BrowserWindow;
+let saveOnline = false;
+let start = false;
+let Path = "";
+let arean = {
+  x: 0,
+  y: 0,
+  width: 384,
+  height: 216,
+};
+let winW = 0;
+let winH = 0;
 
+const ffmpegPath = path.join(__dirname, "../..", "ffmpeg.exe");
 app.on("ready", () => {
+  winW = screen.getPrimaryDisplay().workAreaSize.width;
+  winH = screen.getPrimaryDisplay().workAreaSize.height;
+  arean.x = (winW - arean.width) / 2;
+  arean.y = (winH - arean.height) / 2;
   // 注册停止快捷键
   globalShortcut.register("CommandOrControl+S", () => {
-
-    controlWindow.close();
-    mainWindow.show();
-
-    // 通知主窗口 录制结束
-    mainWindow.webContents.send("video::finish", path.join(__dirname, "../..", "ffmpeg.exe"));
+    if (start) {
+      // 通知录制窗口 录制结束
+      recorderWindow.webContents.send("stop::record", Path, saveOnline, ffmpegPath);
+      controlWindow.webContents.send("video::creating");
+      recorderWindow.hide();
+      moveWindow.hide();
+      controlWindow.show();
+    }
   });
   // 加载一次
   // BrowserWindow.addDevToolsExtension(path.resolve(__dirname, "../../devTools/vue-devtools"));
@@ -23,7 +42,7 @@ app.on("ready", () => {
     path.join(__dirname, "../public/index.html"),
     {
       width: 500,
-      height: 700,
+      height: 300,
     },
     [
       { name: "setMenu", value: null },
@@ -37,12 +56,13 @@ app.on("ready", () => {
   });
 
   // 打开调试工具
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 });
 
 ipcMain.on("pick::path", async () => {
   const PATH = await dialog.showOpenDialog({ properties: ["openDirectory"] });
-  mainWindow.webContents.send("path::chosen", PATH.filePaths[0]);
+  Path = PATH.filePaths[0];
+  mainWindow.webContents.send("path::chosen", Path);
 });
 
 // 主窗口点击录制
@@ -51,17 +71,40 @@ ipcMain.on("start::record", () => {
   mainWindow.minimize();
   const recorderURL = path.join(__dirname, "../public/index.html#recorder");
   const controlURL = path.join(__dirname, "../public/index.html#control");
+  const moveURL = path.join(__dirname, "../public/index.html#move");
   recorderWindow = window.create(
     recorderURL,
     {
-      width: 300,
-      height: 300,
+      width: arean.width,
+      height: arean.height,
+      x: arean.x,
+      y: arean.y,
       transparent: true,
       frame: false,
       alwaysOnTop: true,
       useContentSize: true,
-      modal: true,
-      parent: mainWindow,
+      movable: false,
+      // parent: mainWindow,
+    },
+    [
+      { name: "setMenu", value: null },
+    ],
+  );
+
+  moveWindow = window.create(
+    moveURL,
+    {
+      x: arean.x + arean.width - 32,
+      y: arean.y + arean.height,
+      width: 32,
+      height: 32,
+      transparent: true,
+      frame: false,
+      alwaysOnTop: true,
+      resizable: false,
+      useContentSize: true,
+      parent: recorderWindow,
+      // modal: true,
     },
     [
       { name: "setMenu", value: null },
@@ -70,16 +113,18 @@ ipcMain.on("start::record", () => {
       // { name: "setFullScreen", value: true },
     ],
   );
-  // recorderWindow.webContents.openDevTools();
+  // moveWindow.webContents.openDevTools();
   controlWindow = window.create(
     controlURL,
     {
       width: 250,
       height: 100,
+      x: winW / 2 - 125,
+      y: winH - 100,
       alwaysOnTop: true,
       resizable: false,
       movable: true,
-      parent: recorderWindow,
+      // parent: recorderWindow,
     },
     [
       { name: "setMenu", value: null },
@@ -87,54 +132,97 @@ ipcMain.on("start::record", () => {
   );
 
   // 打开调试工具
-  // controlWindow.webContents.openDevTools();
+  // recorderWindow.webContents.openDevTools();
 
-  // 已经开始录制
-  ipcMain.on("record::start", () => {
-    // 通知控制窗口改变按钮状态
-    controlWindow.minimize();
-    mainWindow.show();
-    controlWindow.webContents.send("record::start");
-  });
 
   // 改变录制区域大小事件监听
   recorderWindow.on("will-resize", (e, newRectangle) => {
-    // 通知主窗口更新数据
-    mainWindow.webContents.send("arean::size", newRectangle);
+    if (newRectangle.width < 100 || newRectangle.height < 100) {
+      e.preventDefault();
+    } else {
+      arean = newRectangle;
+      moveWindow.setPosition(arean.x + arean.width - 32, arean.y + arean.height);
+      // 通知主窗口更新数据
+      recorderWindow.webContents.send("arean::size", newRectangle);
+    }
   });
 
   // 改变录制区域大小位置事件监听
-  recorderWindow.on("will-move", (e, newRectangle) => {
-    // 通知主窗口更新数据
-    mainWindow.webContents.send("arean::move", newRectangle);
+  moveWindow.on("will-move", (e, newRectangle) => {
+    if (newRectangle.x + 32 - arean.width < 0 || newRectangle.y - arean.height < 0) {
+      e.preventDefault();
+    } else {
+      arean.x = newRectangle.x + 32 - arean.width;
+      arean.y = newRectangle.y - arean.height;
+
+      recorderWindow.setPosition(arean.x, arean.y);
+      // 通知主窗口更新数据
+      recorderWindow.webContents.send("arean::move", arean);
+    }
   });
 
   // 控制窗口关闭
   controlWindow.on("closed", () => {
-    recorderWindow.close();
+    controlWindow = null;
+    if (recorderWindow) {
+      recorderWindow.close();
+      recorderWindow = null;
+    }
   });
+  recorderWindow.on("closed", () => {
+    recorderWindow = null;
+    if (controlWindow) {
+      controlWindow.close();
+      controlWindow = null;
+    }
+  });
+
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+    if (recorderWindow) {
+      recorderWindow.close();
+      recorderWindow = null;
+    }
+  });
+});
+
+ipcMain.on("video::finished", (e, message) => {
+  controlWindow.close();
+  shell.openItem(Path);
+  const notification = new Notification({
+    title: "录制",
+    body: message,
+  });
+  notification.show();
 });
 
 // 录制取域选择确认
 ipcMain.on("arean::chose", () => {
   const sizes = recorderWindow.getContentSize();
   const posiontion = recorderWindow.getPosition();
-  // recorderWindow.setIgnoreMouseEvents(true);
-  // recorderWindow.setFocusable(true);
-
-  // 通知主窗口开始录制
-  mainWindow.webContents.send("start::record");
-  // 通知主窗口录制取域数据
-  mainWindow.webContents.send("arean::size", { x: posiontion[0], y: posiontion[1], width: sizes[0], height: sizes[1] });
+  controlWindow.minimize();
+  recorderWindow.setResizable(false);
+  // 通知录制窗口开始录制
+  recorderWindow.webContents.send("arean::chose");
+  // 通知录制窗口录制区域数据
+  recorderWindow.webContents.send("arean::size",
+    {
+      x: posiontion[0],
+      y: posiontion[1],
+      width: sizes[0],
+      height: sizes[1],
+    },
+  );
 });
 
 // 录制结束
 ipcMain.on("stop::record", () => {
-  controlWindow.close();
-  mainWindow.show();
-
-  // 通知主窗口 录制结束
-  mainWindow.webContents.send("video::finish", path.join(__dirname, "../..", "ffmpeg.exe"));
+  recorderWindow.webContents.send("stop::record", Path, saveOnline, ffmpegPath);
+  controlWindow.webContents.send("video::creating");
+  recorderWindow.hide();
+  moveWindow.hide();
+  controlWindow.show();
 });
 
 // 监听开始上传
@@ -155,4 +243,17 @@ ipcMain.on("upload::progress", (e, progress) => {
 // 监听上传完成
 ipcMain.on("upload::finish", (e, URL) => {
   uploadWindow.webContents.send("upload::finish", URL);
+});
+
+// 监听保存
+ipcMain.on("choose::save", (e, SaveOnline) => {
+  saveOnline = SaveOnline;
+});
+
+
+ipcMain.on("recorder::start", () => {
+  start = true;
+});
+ipcMain.on("recorder::end", () => {
+  start = false;
 });

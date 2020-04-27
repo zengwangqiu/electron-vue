@@ -21,8 +21,7 @@ html {
 }
 
 body {
-  box-sizing: border-box;
-  overflow-x: hidden;
+  overflow: hidden;
   background: none;
   width: 100%;
   height: 100vh;
