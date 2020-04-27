@@ -67,6 +67,7 @@ ipcMain.on("pick::path", async () => {
 
 // 主窗口点击录制
 ipcMain.on("start::record", () => {
+  if (recorderWindow) { return; }
   // 主窗口最小化
   mainWindow.minimize();
   const recorderURL = path.join(__dirname, "../public/index.html#recorder");
@@ -84,6 +85,7 @@ ipcMain.on("start::record", () => {
       alwaysOnTop: true,
       useContentSize: true,
       movable: false,
+      // modal: true,
       // parent: mainWindow,
     },
     [
